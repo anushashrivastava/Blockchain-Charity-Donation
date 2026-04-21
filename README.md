@@ -246,7 +246,7 @@ Serving HTTP on 0.0.0.0 port 5500 (http://0.0.0.0:5500/) ...
 
 **Step 11: Open the app**
 - Open the **same browser** where MetaMask is installed
-- Go to: `http://127.0.0.1:5500`
+- Go to: `http://127.0.0.1:5500/frontend/`
 - You should see the CharityChain homepage
 
 **Step 12: Connect wallet and load contract**

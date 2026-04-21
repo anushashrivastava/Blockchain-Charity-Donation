@@ -1,332 +1,363 @@
 # CharityChain — Blockchain-Based Charity Donation Platform
 
-A transparent, trustless charity donation system built with Solidity, Ethers.js, MetaMask, and Remix. Donations are sent **directly to the charity's wallet** on-chain with no intermediaries. Every transaction is immutable and publicly verifiable.
+A decentralized, transparent charity donation system built on Ethereum. Donations are sent **directly to charity wallets on-chain** with no intermediaries. Every transaction is permanently recorded and publicly verifiable on the blockchain.
 
 ---
 
 ## Table of Contents
 
-1. [Project Structure](#project-structure)
-2. [How It Works](#how-it-works)
-3. [Prerequisites](#prerequisites)
-4. [Part 1 — Deploy the Smart Contract (Remix + MetaMask)](#part-1--deploy-the-smart-contract)
-5. [Part 2 — Run the Frontend](#part-2--run-the-frontend)
-6. [Part 3 — Full Demo Walkthrough](#part-3--full-demo-walkthrough)
-7. [Role Reference](#role-reference)
-8. [Request Status Reference](#request-status-reference)
-9. [Troubleshooting](#troubleshooting)
+1. [Problem Statement](#problem-statement)
+2. [Solution Overview](#solution-overview)
+3. [Technologies Used](#technologies-used)
+4. [File Structure](#file-structure)
+5. [Smart Contract Details](#smart-contract-details)
+6. [Prerequisites](#prerequisites)
+7. [Step-by-Step Execution Guide](#step-by-step-execution-guide)
+8. [Role Reference](#role-reference)
+9. [Request Status Reference](#request-status-reference)
+10. [On-Chain Fraud Prevention](#on-chain-fraud-prevention)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
-## Project Structure
+## Problem Statement
+
+Charitable organizations often struggle with transparency and accountability in managing donations. Donors lack visibility into how contributions are used, and there is no reliable mechanism to verify that donated funds reach the intended recipients without passing through intermediaries who may misuse them.
+
+---
+
+## Solution Overview
+
+CharityChain addresses this by:
+
+- Recording every donation immutably on the Ethereum blockchain
+- Sending ETH directly from the donor's wallet to the charity's wallet — the smart contract holds nothing
+- Requiring admin verification of charities before they can receive funds (fraud prevention)
+- Requiring admin approval of each donation request before donors can contribute
+- Giving donors a full, timestamped on-chain history of every contribution they have made
+- Showing real-time progress bars for each donation campaign
+
+---
+
+## Technologies Used
+
+| Technology | Purpose |
+|------------|---------|
+| **Solidity 0.8.x** | Smart contract language — handles all on-chain logic, role enforcement, and fund transfer |
+| **Ethereum (Sepolia Testnet)** | Blockchain network where the contract is deployed |
+| **MetaMask** | Browser wallet extension — signs transactions and manages accounts |
+| **Remix IDE** | Browser-based IDE used to compile and deploy the Solidity contract |
+| **Ethers.js v6** | JavaScript library for connecting the frontend to MetaMask and the deployed contract |
+| **HTML5 / CSS3** | Frontend structure and styling |
+| **Vanilla JavaScript (ES2020)** | All frontend interaction logic — no frameworks |
+| **Python (http.server)** | Lightweight local web server to serve the frontend files |
+
+---
+
+## File Structure
 
 ```
 charity-donation/
+│
 ├── contracts/
-│   └── CharityDonation.sol       ← Smart contract (deploy this in Remix)
+│   └── CharityDonation.sol        ← Solidity smart contract (deploy this in Remix)
+│
 ├── frontend/
-│   ├── index.html                ← Open this in your browser
-│   ├── app.js                    ← All blockchain interaction logic
-│   └── styles.css                ← Styling
-└── docs/
-    └── DEMO_CHECKLIST.md         ← Quick demo script
+│   ├── index.html                 ← Main UI — all panels and layout
+│   ├── charity.js                 ← All blockchain interaction logic (Ethers.js)
+│   └── styles.css                 ← Styling for all components
+│
+├── docs/
+│   └── DEMO_CHECKLIST.md          ← Quick reference demo script
+│
+└── README.md                      ← This file
 ```
+
+### File Descriptions
+
+**`contracts/CharityDonation.sol`**
+The Solidity smart contract containing all business logic: role management, charity registration and verification, donation request lifecycle, fund transfer, and immutable donation records. This is the only file that gets deployed to the blockchain.
+
+**`frontend/index.html`**
+The single-page frontend. Contains four role-specific panels (Admin, Charity, Donor, No Role) that are shown or hidden based on the connected wallet's on-chain role. Loads Ethers.js from CDN and references `charity.js`.
+
+**`frontend/charity.js`**
+All JavaScript logic for the application. Includes the full contract ABI, MetaMask connection, contract loading, and all functions for every role — assign roles, register/verify charities, create/approve requests, donate, and load donation history.
+
+**`frontend/styles.css`**
+CSS for the entire UI — layout, cards, progress bars, status pills, form elements, and responsive design.
 
 ---
 
-## How It Works
+## Smart Contract Details
 
-```
-Admin deploys contract
-       │
-       ▼
-Admin assigns roles (Charity / Donor) to wallets
-       │
-       ▼
-Charity registers profile → Admin verifies them
-       │
-       ▼
-Charity creates donation request → Admin approves it
-       │
-       ▼
-Donors browse approved requests → Send ETH directly to charity wallet
-       │
-       ▼
-All donations logged on-chain, visible on the live feed and donor history
-```
+**Contract name:** `CharityDonation`
+**Solidity version:** `^0.8.0`
+**Network:** Ethereum Sepolia Testnet (or local Ganache)
 
-**Key properties:**
-- ETH goes directly to the charity wallet — the contract holds nothing
-- Admin must verify charities before they can create requests (fraud prevention)
-- Admin must approve each request before it accepts donations (further fraud prevention)
-- Every donation is permanently recorded on-chain with timestamp, donor address, amount, and message
-- The UI auto-refreshes progress bars when a donation is confirmed
+### Roles (enum)
+| Value | Role | Permissions |
+|-------|------|-------------|
+| 0 | None | No access |
+| 1 | Admin | Assign roles, verify charities, approve/reject requests |
+| 2 | Charity | Register profile, create donation requests |
+| 3 | Donor | Browse approved requests, donate ETH, view history |
+
+### Request Status (enum)
+| Value | Status | Meaning |
+|-------|--------|---------|
+| 0 | Pending | Created by charity, awaiting admin approval |
+| 1 | Approved | Admin approved — donors can now contribute |
+| 2 | Rejected | Admin rejected — cannot receive donations |
+| 3 | Fulfilled | Target amount reached — marked complete |
+
+### Key Functions
+
+**Admin functions:**
+- `assignRole(address, role)` — assigns a role to any wallet
+- `verifyCharity(address)` — marks a registered charity as verified
+- `approveRequest(requestId)` — opens a donation request to donors
+- `rejectRequest(requestId)` — closes a request permanently
+
+**Charity functions:**
+- `registerCharity(name, description)` — registers the charity's profile on-chain
+- `createRequest(title, description, targetAmount)` — creates a new donation campaign
+
+**Donor functions:**
+- `donate(requestId, message)` — sends ETH directly to the charity wallet; records the donation on-chain
+
+**View functions:**
+- `getAllRequests()` — returns all donation requests
+- `getRequestDonations(requestId)` — returns all donations for a specific request
+- `getMyDonations()` — returns request IDs the current donor contributed to
+- `getMyCharityRequests()` — returns all requests created by the current charity
+- `getAllCharities()` — returns all registered charity profiles
+- `getCharityProfile(address)` — returns a single charity's profile
+
+### On-Chain Events
+Every key action emits a blockchain event for auditability:
+- `RoleAssigned` — when admin assigns a role
+- `CharityRegistered` — when a charity registers
+- `CharityVerified` — when admin verifies a charity
+- `RequestCreated` — when a charity creates a request
+- `RequestApproved` / `RequestRejected` — when admin reviews a request
+- `DonationMade` — when a donor sends ETH
+- `RequestFulfilled` — when a request reaches its target
 
 ---
 
 ## Prerequisites
 
-You need:
+Install and set up the following before running the project:
 
-| Tool | Purpose | Link |
-|------|---------|-------|
-| **MetaMask** browser extension | Wallet for all accounts | https://metamask.io |
-| **Remix IDE** | Deploy the smart contract | https://remix.ethereum.org |
-| **Python 3** (or any HTTP server) | Serve the frontend locally | Already installed on most systems |
-| **Sepolia test ETH** | Pay for transactions on testnet | https://sepoliafaucet.com |
+| Tool | Where to get it |
+|------|----------------|
+| **Google Chrome or Firefox** | Any standard download |
+| **MetaMask extension** | https://metamask.io |
+| **Python 3** | https://python.org (pre-installed on Mac/Linux) |
+| **Sepolia test ETH** | https://sepoliafaucet.com or https://faucets.chain.link |
 
-> **Ganache alternative:** If you prefer a fully local setup, Ganache works too. See the [Troubleshooting](#troubleshooting) section.
-
----
-
-## Part 1 — Deploy the Smart Contract
-
-### Step 1.1 — Set up MetaMask accounts
-
-You need **at least 3 MetaMask accounts** for a full demo:
-
-| Account | Role | Needs test ETH? |
-|---------|------|----------------|
-| Account 1 | Admin (contract deployer) | Yes (small amount for deployment) |
-| Account 2 | Charity wallet | No |
-| Account 3 | Donor wallet | Yes (to send donations) |
-
-To create extra accounts in MetaMask:
-- Click the account icon (top right) → **Add account or hardware wallet** → **Add a new account**
-
-To get Sepolia ETH:
-- Go to https://sepoliafaucet.com or https://faucets.chain.link
-- Paste your Account 1 and Account 3 addresses and request test ETH
-
-### Step 1.2 — Switch MetaMask to Sepolia
-
-1. Open MetaMask
-2. Click the network dropdown at the top (may say "Ethereum Mainnet")
-3. Select **Sepolia test network**
-   - If you don't see it, go to Settings → Advanced → turn on **Show test networks**
-
-### Step 1.3 — Deploy in Remix
-
-1. Open **https://remix.ethereum.org**
-
-2. In the left sidebar, click the **File Explorer** icon (top icon)
-
-3. Click the **New File** icon → name it `CharityDonation.sol`
-
-4. Copy the entire contents of `contracts/CharityDonation.sol` and paste it into Remix
-
-5. Go to the **Solidity Compiler** tab (left sidebar, looks like `<S>`)
-   - Compiler version: select **0.8.0** or higher (e.g. `0.8.20`)
-   - Click **Compile CharityDonation.sol**
-   - You should see a green checkmark — no errors
-
-6. Go to the **Deploy & Run Transactions** tab (left sidebar, looks like Ethereum logo)
-   - **Environment:** select `Injected Provider - MetaMask`
-   - MetaMask will pop up and ask to connect — approve it
-   - **Account:** make sure **Account 1 (Admin)** is selected in MetaMask
-   - **Contract:** select `CharityDonation`
-
-7. Click the orange **Deploy** button
-   - MetaMask will show a transaction prompt → click **Confirm**
-   - Wait ~10–20 seconds for the transaction to confirm on Sepolia
-
-8. In Remix, under **Deployed Contracts**, you'll see your contract
-   - Click the **copy icon** next to the contract address
-   - **Save this address — you'll need it for the frontend**
+You do **not** need Node.js, npm, Truffle, Hardhat, or any other tools.
 
 ---
 
-## Part 2 — Run the Frontend
+## Step-by-Step Execution Guide
 
-### Step 2.1 — Start a local web server
+### Phase 1 — MetaMask Setup
 
-Open a terminal, navigate to the `frontend` folder:
+**Step 1: Install MetaMask**
+- Go to https://metamask.io and install the browser extension
+- Create a wallet and save your seed phrase securely
 
-**On Windows:**
-```cmd
+**Step 2: Create 3 accounts in MetaMask**
+- Click the account circle (top right in MetaMask) → **Add account or hardware wallet** → **Add a new account**
+- Create 3 accounts total:
+  - Account 1 → Admin (contract deployer)
+  - Account 2 → Charity wallet
+  - Account 3 → Donor wallet
+
+**Step 3: Switch to Sepolia testnet**
+- Click the network dropdown at the top of MetaMask
+- Select **Sepolia test network**
+- If you don't see it: MetaMask Settings → Advanced → Enable **Show test networks**
+
+**Step 4: Get Sepolia test ETH**
+- Go to https://sepoliafaucet.com
+- Paste **Account 1** address → request ETH (needed to deploy)
+- Paste **Account 3** address → request ETH (needed to donate)
+- Wait 1–2 minutes for funds to arrive
+
+---
+
+### Phase 2 — Deploy the Smart Contract
+
+**Step 5: Open Remix IDE**
+- Go to https://remix.ethereum.org in your browser
+
+**Step 6: Create the contract file**
+- In the left sidebar, click the **File Explorer** icon
+- Click **New File** → name it `CharityDonation.sol`
+- Open `contracts/CharityDonation.sol` from this project
+- Copy the entire contents and paste into Remix
+
+**Step 7: Compile the contract**
+- Click the **Solidity Compiler** tab (left sidebar — looks like `<S>`)
+- Compiler version: select any **0.8.x** version (e.g. `0.8.20`)
+- Click **Compile CharityDonation.sol**
+- You should see a green checkmark — no errors
+
+**Step 8: Deploy the contract**
+- Click the **Deploy & Run Transactions** tab (left sidebar — Ethereum logo)
+- **Environment:** select `Injected Provider - MetaMask`
+- MetaMask will pop up asking to connect → click **Connect**
+- Make sure MetaMask is on **Account 1 (Admin)** and **Sepolia** network
+- **Contract:** select `CharityDonation` from the dropdown
+- Click the orange **Deploy** button
+- MetaMask will show a transaction confirmation → click **Confirm**
+- Wait 10–20 seconds for the transaction to confirm on Sepolia
+
+**Step 9: Copy the contract address**
+- In Remix under **Deployed Contracts**, your contract will appear
+- Click the **copy icon** next to the contract address
+- Save this address — you will need it in the frontend
+
+---
+
+### Phase 3 — Run the Frontend
+
+**Step 10: Start the local web server**
+
+Open a terminal and navigate to the `frontend/` folder:
+
+```bash
+# Windows
 cd path\to\charity-donation\frontend
 python -m http.server 5500
-```
 
-**On Mac/Linux:**
-```bash
+# Mac / Linux
 cd path/to/charity-donation/frontend
 python3 -m http.server 5500
 ```
 
 You should see:
 ```
-Serving HTTP on 0.0.0.0 port 5500 ...
+Serving HTTP on 0.0.0.0 port 5500 (http://0.0.0.0:5500/) ...
 ```
 
-### Step 2.2 — Open the app
+**Step 11: Open the app**
+- Open the **same browser** where MetaMask is installed
+- Go to: `http://127.0.0.1:5500`
+- You should see the CharityChain homepage
 
-Open your browser (the same browser where MetaMask is installed) and go to:
-
-```
-http://127.0.0.1:5500
-```
-
-You should see the CharityChain homepage.
-
-### Step 2.3 — Connect the contract
-
-1. Click **Connect Wallet** → MetaMask will ask you to connect → click **Connect**
-2. In the **Contract Address** field, paste the address you copied from Remix
-3. Click **Save** (stores it in your browser so you don't have to paste it every time)
-4. Click **Load Contract**
-5. The status bar should say **"Contract loaded successfully"**
-6. The global stats bar will appear at the top
-7. Your role panel will appear (Admin, Charity, or Donor depending on your wallet)
+**Step 12: Connect wallet and load contract**
+- Click **Connect Wallet** → MetaMask will ask to connect → click **Connect**
+- Paste the contract address (from Step 9) into the **Contract Address** field
+- Click **Save** (stores it in browser so you don't need to paste it again)
+- Click **Load Contract**
+- Status bar should say: **"Contract loaded successfully"**
+- The Admin Panel will appear (since Account 1 is Admin)
 
 ---
 
-## Part 3 — Full Demo Walkthrough
+### Phase 4 — Full Demo Walkthrough
 
-> Switch MetaMask accounts by clicking the MetaMask icon → clicking the account circle → selecting a different account. The page detects the change automatically.
+> To switch accounts: click the MetaMask extension → click the account name → select a different account. The page detects the change automatically.
 
-### Phase 1 — Admin Setup
+**Step 13 (Admin): Assign roles**
+- In Admin Panel → **Assign Role**
+- Paste Account 2 address → select **Charity** → click **Assign Role** → confirm in MetaMask → wait
+- Paste Account 3 address → select **Donor** → click **Assign Role** → confirm in MetaMask → wait
 
-**Use Account 1 (Admin)**
+**Step 14 (Charity): Register charity**
+- Switch MetaMask to **Account 2**
+- The page switches to Charity Panel automatically
+- Under **Step 1 — Register Your Charity**: fill in name and description
+- Click **Register Charity** → confirm in MetaMask → wait for confirmation
 
-1. In the **Admin Panel**, go to **Assign Role**
-2. Paste **Account 2's address** → select **Charity** → click **Assign Role** → confirm in MetaMask
-3. Wait for confirmation
-4. Paste **Account 3's address** → select **Donor** → click **Assign Role** → confirm in MetaMask
-5. Wait for confirmation
+**Step 15 (Admin): Verify the charity**
+- Switch MetaMask to **Account 1 (Admin)**
+- In Admin Panel → **Load All Charities** — you will see the charity with a ⚠ Pending badge
+- Copy the charity's wallet address from the card
+- Paste it into **Verify Charity** → click **Verify Charity** → confirm in MetaMask → wait
+- The charity card now shows **✓ Verified**
 
-### Phase 2 — Charity Registers
+**Step 16 (Charity): Create a donation request**
+- Switch MetaMask to **Account 2 (Charity)**
+- Under **Step 2 — Create a Donation Request**: fill in title, description, target ETH amount
+- Click **Create Request** → confirm in MetaMask → wait
+- Click **Refresh** under My Requests — the request appears with status **Pending**
 
-**Switch MetaMask to Account 2 (Charity)**
+**Step 17 (Admin): Approve the request**
+- Switch MetaMask to **Account 1 (Admin)**
+- In Admin Panel → **Load Pending Requests**
+- Click **✓ Approve** on the request → confirm in MetaMask → wait
+- The request disappears from the pending list
 
-The page will detect the account change and show the Charity Panel.
+**Step 18 (Donor): Donate**
+- Switch MetaMask to **Account 3 (Donor)**
+- The page switches to Donor Panel
+- Click **Load All Requests** — the approved request appears with progress bar at 0%
+- Enter an ETH amount (e.g. `0.001`) and optional message
+- Click **💚 Donate** → confirm in MetaMask → wait for confirmation
+- The progress bar updates immediately to reflect the new amount
 
-1. Go to **Step 1 — Register Your Charity**
-2. Fill in charity name and description → click **Register Charity** → confirm in MetaMask
-3. Wait for confirmation. You'll see: *"Registered! Ask the admin to verify your wallet."*
+**Step 19 (Donor): View donation history**
+- Click **Load My Donations**
+- You will see every request you donated to, with:
+  - Current progress bar
+  - Each individual donation amount and timestamp
+  - Your message (if any)
+  - Your total contribution to that request
 
-**Switch back to Account 1 (Admin)**
-
-4. In **Admin Panel → Verify Charity**, paste **Account 2's address** → click **Verify Charity** → confirm in MetaMask
-5. Wait for confirmation
-
-### Phase 3 — Charity Creates a Request
-
-**Switch to Account 2 (Charity)**
-
-1. Go to **Step 2 — Create a Donation Request**
-2. Fill in:
-   - Title: e.g. `School Supplies Drive`
-   - Description: e.g. `Providing notebooks and pens to 200 students`
-   - Target Amount: e.g. `0.05` (ETH)
-3. Click **Create Request** → confirm in MetaMask
-4. Click **Refresh** under My Requests — you should see the request with status **Pending**
-
-### Phase 4 — Admin Approves the Request
-
-**Switch to Account 1 (Admin)**
-
-1. In **Admin Panel → Pending Requests**, click **Load Pending Requests**
-2. You'll see the charity's request
-3. Click **✓ Approve** → confirm in MetaMask
-4. Wait for confirmation — the request disappears from the pending list
-
-### Phase 5 — Donor Donates
-
-**Switch to Account 3 (Donor)**
-
-1. In **Donor Panel**, click **Load All Requests**
-2. You'll see the approved request with its progress bar at **0%**
-3. Enter an ETH amount (e.g. `0.01`) in the donation box
-4. Optionally add a message (e.g. `Keep up the great work!`)
-5. Click **💚 Donate** → confirm in MetaMask
-6. Wait for confirmation
-7. The progress bar **immediately updates** to reflect the new amount
-8. The **Live Feed panel** on the right shows the donation in real time
-9. The global stats counter at the top updates
-
-### Phase 6 — Check Donation History
-
-**Still as Account 3 (Donor)**
-
-1. Click **Load My Donations**
-2. You'll see each request you donated to, with:
-   - The current progress bar
-   - A breakdown of your individual donations with timestamps and messages
-   - Your total contribution to that request
-
-### Phase 7 — Charity Checks Incoming Donations
-
-**Switch to Account 2 (Charity)**
-
-1. Click **Refresh** under My Requests
-2. Click **Show donations ▾** on any request to see the full donation list
-3. Each donor's address, amount, timestamp, and message are visible
+**Step 20 (Charity): View incoming donations**
+- Switch MetaMask to **Account 2 (Charity)**
+- Click **Refresh** under My Requests
+- Click **Show donations ▾** on any request to see the full donor list
 
 ---
 
-## Role Reference
+## On-Chain Fraud Prevention
 
-| Role | Value | Can do |
-|------|-------|--------|
-| None | 0 | Nothing |
-| Admin | 1 | Assign roles, verify charities, approve/reject requests |
-| Charity | 2 | Register, create donation requests, view incoming donations |
-| Donor | 3 | Browse approved requests, donate ETH, view history |
-
----
-
-## Request Status Reference
-
-| Status | Value | Meaning |
-|--------|-------|---------|
-| Pending | 0 | Created by charity, waiting for admin approval |
-| Approved | 1 | Admin approved — donors can donate |
-| Rejected | 2 | Admin rejected — cannot accept donations |
-| Fulfilled | 3 | Target amount reached — marked complete |
+| Mechanism | How it works |
+|-----------|-------------|
+| **Role gating** | Only wallets with the Charity role can create requests; only wallets with the Donor role can donate |
+| **Two-step charity verification** | Admin must assign the Charity role AND separately verify the charity profile before any requests are accepted |
+| **Request approval** | Every donation campaign must be reviewed and approved by the admin before it appears to donors |
+| **Direct transfer** | ETH goes directly from `msg.sender` to `charity.wallet` — the contract never holds funds |
+| **Immutable records** | All donations are permanently stored on-chain with donor address, amount, timestamp, and message |
+| **No double-dipping** | The contract tracks which requests a donor has participated in for accurate history |
 
 ---
 
 ## Troubleshooting
 
-### "MetaMask not detected"
-- Make sure MetaMask is installed and enabled in your browser
-- Use Chrome or Firefox (MetaMask doesn't work on some Brave settings)
+**"MetaMask not detected"**
+Make sure the MetaMask extension is installed and enabled in your browser.
 
-### "Failed to load contract"
-- Double-check the contract address — it must match exactly what Remix showed after deployment
-- Make sure MetaMask is on the **same network** you deployed to (Sepolia, or Ganache)
-- Make sure you clicked **Compile** successfully before deploying in Remix
+**"Failed to load contract"**
+- Double-check the contract address — copy it exactly from Remix
+- Make sure MetaMask is on the same network you deployed to (Sepolia)
 
-### "User rejected transaction"
-- You clicked Cancel in MetaMask — try the action again and click Confirm
+**"Charity not verified by admin yet"**
+The charity registered but the admin hasn't verified them. Switch to Admin wallet → Verify Charity → paste the charity address → confirm.
 
-### "Error: Not a charity" or "Error: Not admin"
-- The currently connected MetaMask account doesn't have the right role
-- Switch to the correct account or ask admin to assign the role
+**"Not a charity" or "Not admin"**
+The connected MetaMask account doesn't have the right role. Switch to the correct account.
 
-### "Charity not verified"
-- The charity must be verified by an Admin before creating requests
-- Switch to Admin account → Verify Charity → paste the charity wallet address
+**Progress bar not updating**
+Click **Load All Requests** to manually refresh after a donation confirms.
 
-### Progress bar not updating after donation
-- The bar updates automatically after the transaction confirms
-- If it doesn't, click the **Load All Requests** button to manually refresh
+**Browser showing old version of JS**
+Rename `app.js` to `charity.js` and update `index.html` to reference `charity.js`. The browser will fetch the new filename fresh with no cache.
 
-### Using Ganache instead of Sepolia
-
-1. Open Ganache → Start a new workspace (note: RPC URL is `http://127.0.0.1:7545`, Chain ID `1337`)
-2. In MetaMask → Add a network manually:
-   - Network Name: `Ganache`
-   - RPC URL: `http://127.0.0.1:7545`
-   - Chain ID: `1337`
-   - Currency: `ETH`
-3. Import accounts from Ganache using their private keys (click the key icon in Ganache)
-4. In Remix, set Environment to `Injected Provider - MetaMask`, select your Ganache network
-5. Deploy and follow the same steps above — everything works the same way
-
-### Port 5500 already in use
+**Port 5500 already in use**
 ```bash
 python3 -m http.server 8080
 # Then open http://127.0.0.1:8080
 ```
+
+**Ganache (local) instead of Sepolia**
+- Start Ganache → note RPC `http://127.0.0.1:7545`, Chain ID `1337`
+- Add to MetaMask: Settings → Networks → Add Network → fill in the values above
+- Import Ganache accounts using their private keys
+- Deploy in Remix with the Ganache network selected — everything else is identical

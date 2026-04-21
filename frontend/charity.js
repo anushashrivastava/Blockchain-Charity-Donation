@@ -69,7 +69,7 @@ const el = {
   browseList:           $("browseList"),
   myDonationsBtn:       $("myDonationsBtn"),
   myDonationsList:      $("myDonationsList"),
-  donationFeed:         $("donationFeed"),
+  donationFeed:         null,
   noRolePanel:          $("noRolePanel"),
 };
 
@@ -149,13 +149,7 @@ function ensureReady() {
 
 // ─── Live feed ────────────────────────────────────────────────────────────────
 function pushFeedItem(icon, html) {
-  const item = document.createElement("div");
-  item.className = "feed-item feed-new";
-  item.innerHTML = `<span class="feed-icon">${icon}</span><div>${html}<div class="feed-time">${new Date().toLocaleTimeString()}</div></div>`;
-  el.donationFeed.insertBefore(item, el.donationFeed.firstChild);
-  setTimeout(() => item.classList.remove("feed-new"), 600);
-  while (el.donationFeed.children.length > 20)
-    el.donationFeed.removeChild(el.donationFeed.lastChild);
+  // feed panel removed
 }
 
 // ─── Contract events ─────────────────────────────────────────────────────────

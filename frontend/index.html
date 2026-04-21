@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CharityChain — Blockchain Donation Platform</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="header-inner">
+      <div class="logo">🤝 CharityChain</div>
+      <div class="header-right">
+        <span id="walletAddress" class="wallet-addr">Not connected</span>
+        <span id="walletRole" class="role-badge">—</span>
+        <button id="connectWalletBtn" class="btn btn-primary">Connect Wallet</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Status bar ── -->
+  <div id="statusBar" class="status-bar">Connect your wallet to begin.</div>
+
+  <!-- ── Global stats (hidden until contract loaded) ── -->
+  <div id="statPanel" class="stat-panel" style="display:none">
+    <div class="stat-item">
+      <span class="stat-label">Total Donated (all time)</span>
+      <span id="statTotalDonations" class="stat-value">—</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <span class="stat-label">Total Requests</span>
+      <span id="statTotalRequests" class="stat-value">—</span>
+    </div>
+  </div>
+
+  <!-- ── Contract setup ── -->
+  <div class="container">
+    <div class="card setup-card">
+      <label>Contract Address</label>
+      <div class="row-gap">
+        <input type="text" id="contractAddress" placeholder="0x… paste your deployed contract address here" />
+        <button id="saveContractBtn" class="btn btn-outline">Save</button>
+        <button id="loadContractBtn" class="btn btn-primary">Load Contract</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Two-column layout: panels + live feed ── -->
+  <div class="container two-col">
+
+    <!-- Left: role panels -->
+    <div class="panels-col">
+
+      <!-- ════ ADMIN ════ -->
+      <div id="adminPanel" class="panel" style="display:none">
+        <h2>🛡 Admin Panel</h2>
+
+        <div class="info-banner">
+          <strong>📋 Workflow:</strong>
+          1. Assign Charity role to a wallet &nbsp;|&nbsp;
+          2. That wallet registers in the Charity Panel &nbsp;|&nbsp;
+          3. Verify them here &nbsp;|&nbsp;
+          4. Approve their donation requests
+        </div>
+
+        <div class="card">
+          <h3>Assign Role</h3>
+          <p class="note">Give a wallet a role so they can use the platform.</p>
+          <label>Wallet Address</label>
+          <input type="text" id="roleWallet" placeholder="0x…" />
+          <label>Role</label>
+          <select id="roleSelect">
+            <option value="1">Admin</option>
+            <option value="2">Charity</option>
+            <option value="3">Donor</option>
+          </select>
+          <button id="assignRoleBtn" class="btn btn-primary mt">Assign Role</button>
+        </div>
+
+        <div class="card">
+          <h3>Verify Charity</h3>
+          <p class="note">After a charity registers, verify them here so they can create donation requests.</p>
+          <label>Charity Wallet Address</label>
+          <input type="text" id="verifyCharityWallet" placeholder="0x…" />
+          <button id="verifyCharityBtn" class="btn btn-primary mt">Verify Charity</button>
+        </div>
+
+        <div class="card">
+          <h3>Pending Requests</h3>
+          <p class="note">Review and approve or reject requests before they go live to donors.</p>
+          <button id="loadPendingBtn" class="btn btn-outline">Load Pending Requests</button>
+          <div id="pendingList" class="list-area"></div>
+        </div>
+
+        <div class="card">
+          <h3>All Charities</h3>
+          <button id="loadCharitiesBtn" class="btn btn-outline">Load All Charities</button>
+          <div id="charitiesList" class="list-area"></div>
+        </div>
+      </div>
+
+      <!-- ════ CHARITY ════ -->
+      <div id="charityPanel" class="panel" style="display:none">
+        <h2>🏛 Charity Panel</h2>
+
+        <div class="info-banner">
+          <strong>📋 Order of steps:</strong>
+          Step 1 → Register below &nbsp;|&nbsp;
+          Step 2 → Ask admin to verify your wallet &nbsp;|&nbsp;
+          Step 3 → Create donation requests
+        </div>
+
+        <div class="card">
+          <h3>Step 1 — Register Your Charity</h3>
+          <p class="note">Do this once. Then ask the admin to verify your wallet. You cannot create requests until verified.</p>
+          <label>Charity Name</label>
+          <input type="text" id="charityName" placeholder="e.g. Hope Foundation" />
+          <label>Description</label>
+          <textarea id="charityDesc" placeholder="What does your charity do?"></textarea>
+          <button id="registerCharityBtn" class="btn btn-primary mt">Register Charity</button>
+        </div>
+
+        <div class="card">
+          <h3>Step 2 — Create a Donation Request</h3>
+          <p class="note">Each request needs admin approval before donors can contribute to it.</p>
+          <label>Title</label>
+          <input type="text" id="reqTitle" placeholder="e.g. School Supplies Drive" />
+          <label>Description</label>
+          <textarea id="reqDesc" placeholder="What will the funds be used for?"></textarea>
+          <label>Target Amount (ETH)</label>
+          <input type="number" id="reqTarget" placeholder="0.05" step="0.001" min="0.001" />
+          <button id="createRequestBtn" class="btn btn-primary mt">Create Request</button>
+        </div>
+
+        <div class="card">
+          <h3>My Requests</h3>
+          <button id="refreshMyRequestsBtn" class="btn btn-outline">Refresh</button>
+          <div id="myRequestsList" class="list-area"></div>
+        </div>
+      </div>
+
+      <!-- ════ DONOR ════ -->
+      <div id="donorPanel" class="panel" style="display:none">
+        <h2>💚 Donor Panel</h2>
+
+        <div class="card">
+          <h3>Browse Approved Requests</h3>
+          <p class="note">All requests listed here are admin-approved. Donations go directly to the charity wallet on-chain — no intermediary.</p>
+          <button id="browseRequestsBtn" class="btn btn-outline">Load All Requests</button>
+          <div id="browseList" class="list-area"></div>
+        </div>
+
+        <div class="card">
+          <h3>My Donation History</h3>
+          <p class="note">Full on-chain record of every donation you have made.</p>
+          <button id="myDonationsBtn" class="btn btn-outline">Load My Donations</button>
+          <div id="myDonationsList" class="list-area"></div>
+        </div>
+      </div>
+
+      <!-- ════ NO ROLE ════ -->
+      <div id="noRolePanel" class="panel" style="display:none">
+        <div class="card center-card">
+          <div class="center-icon">👋</div>
+          <h2>Welcome to CharityChain</h2>
+          <p>Your wallet has no role assigned yet.<br/>Ask the admin to assign you a <strong>Charity</strong> or <strong>Donor</strong> role, then reload the contract.</p>
+        </div>
+      </div>
+
+    </div><!-- /panels-col -->
+
+    <!-- Right: live donation feed -->
+    <div class="feed-col">
+      <div class="card feed-card">
+        <h3>📡 Live Donation Feed</h3>
+        <p class="note">Updates automatically when donations are made on-chain.</p>
+        <div id="donationFeed" class="feed-area">
+          <p class="note">Waiting for activity…</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /two-col -->
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

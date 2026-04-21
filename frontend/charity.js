@@ -19,7 +19,6 @@ const CONTRACT_ABI = [
   { inputs: [{ internalType: "uint256", name: "requestId", type: "uint256" }, { internalType: "string", name: "message", type: "string" }], name: "donate", outputs: [], stateMutability: "payable", type: "function" },
   { inputs: [], name: "getMyDonations", outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "getAllRequests", outputs: [{ components: [{ internalType: "uint256", name: "id", type: "uint256" }, { internalType: "address", name: "charity", type: "address" }, { internalType: "string", name: "title", type: "string" }, { internalType: "string", name: "description", type: "string" }, { internalType: "uint256", name: "targetAmount", type: "uint256" }, { internalType: "uint256", name: "raisedAmount", type: "uint256" }, { internalType: "uint8", name: "status", type: "uint8" }, { internalType: "uint256", name: "createdAt", type: "uint256" }, { internalType: "uint256", name: "fulfilledAt", type: "uint256" }], internalType: "struct CharityDonation.DonationRequest[]", name: "", type: "tuple[]" }], stateMutability: "view", type: "function" },
-  { inputs: [{ internalType: "uint256", name: "requestId", type: "uint256" }], name: "getRequest", outputs: [{ components: [{ internalType: "uint256", name: "id", type: "uint256" }, { internalType: "address", name: "charity", type: "address" }, { internalType: "string", name: "title", type: "string" }, { internalType: "string", name: "description", type: "string" }, { internalType: "uint256", name: "targetAmount", type: "uint256" }, { internalType: "uint256", name: "raisedAmount", type: "uint256" }, { internalType: "uint8", name: "status", type: "uint8" }, { internalType: "uint256", name: "createdAt", type: "uint256" }, { internalType: "uint256", name: "fulfilledAt", type: "uint256" }], internalType: "struct CharityDonation.DonationRequest", name: "", type: "tuple" }], stateMutability: "view", type: "function" },
   { inputs: [{ internalType: "uint256", name: "requestId", type: "uint256" }], name: "getRequestDonations", outputs: [{ components: [{ internalType: "uint256", name: "requestId", type: "uint256" }, { internalType: "address", name: "donor", type: "address" }, { internalType: "uint256", name: "amount", type: "uint256" }, { internalType: "uint256", name: "donatedAt", type: "uint256" }, { internalType: "string", name: "message", type: "string" }], internalType: "struct CharityDonation.Donation[]", name: "", type: "tuple[]" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "getAllCharities", outputs: [{ components: [{ internalType: "address", name: "wallet", type: "address" }, { internalType: "string", name: "name", type: "string" }, { internalType: "string", name: "description", type: "string" }, { internalType: "bool", name: "verified", type: "bool" }, { internalType: "uint256", name: "totalReceived", type: "uint256" }], internalType: "struct CharityDonation.CharityProfile[]", name: "", type: "tuple[]" }], stateMutability: "view", type: "function" },
   { inputs: [{ internalType: "address", name: "charity", type: "address" }], name: "getCharityProfile", outputs: [{ components: [{ internalType: "address", name: "wallet", type: "address" }, { internalType: "string", name: "name", type: "string" }, { internalType: "string", name: "description", type: "string" }, { internalType: "bool", name: "verified", type: "bool" }, { internalType: "uint256", name: "totalReceived", type: "uint256" }], internalType: "struct CharityDonation.CharityProfile", name: "", type: "tuple" }], stateMutability: "view", type: "function" },
@@ -29,12 +28,10 @@ const CONTRACT_ABI = [
   { inputs: [], name: "totalRequests", outputs: [{ internalType: "uint256", name: "", type: "uint256" }], stateMutability: "view", type: "function" },
 ];
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 const ROLE_NAMES   = { 0: "None", 1: "Admin", 2: "Charity", 3: "Donor" };
 const STATUS_NAMES = { 0: "Pending", 1: "Approved", 2: "Rejected", 3: "Fulfilled" };
 const STATUS_PILLS = { 0: "pill-pending", 1: "pill-approved", 2: "pill-rejected", 3: "pill-fulfilled" };
 
-// ─── DOM refs ─────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 const el = {
   statusBar:            $("statusBar"),
@@ -76,13 +73,11 @@ const el = {
   noRolePanel:          $("noRolePanel"),
 };
 
-// ─── State ────────────────────────────────────────────────────────────────────
 let provider, signer, contract;
 let currentAccount = null;
 let currentRole    = 0;
 let eventListenersAttached = false;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 function setStatus(msg, isError = false) {
   el.statusBar.textContent = msg;
   el.statusBar.className = "status-bar" + (isError ? " error" : "");
@@ -163,7 +158,7 @@ function pushFeedItem(icon, html) {
     el.donationFeed.removeChild(el.donationFeed.lastChild);
 }
 
-// ─── Contract event listeners ─────────────────────────────────────────────────
+// ─── Contract events ─────────────────────────────────────────────────────────
 function attachContractEvents() {
   if (eventListenersAttached) return;
   eventListenersAttached = true;
@@ -171,17 +166,14 @@ function attachContractEvents() {
   contract.on("DonationMade", async (requestId, donor, amount) => {
     pushFeedItem("💚",
       `<strong>${shortAddr(donor)}</strong> donated <strong>${ethVal(amount)}</strong>
-       to Request <strong>#${requestId}</strong>`
-    );
+       to Request <strong>#${requestId}</strong>`);
     await updateStats();
     if (currentRole === 3) { await browseRequests(true); await loadMyDonations(true); }
     if (currentRole === 2) await refreshMyRequests(true);
   });
 
   contract.on("RequestFulfilled", async (requestId) => {
-    pushFeedItem("🎉",
-      `Request <strong>#${requestId}</strong> has been <strong>fully funded!</strong>`
-    );
+    pushFeedItem("🎉", `Request <strong>#${requestId}</strong> has been <strong>fully funded!</strong>`);
     await updateStats();
     if (currentRole === 3) await browseRequests(true);
     if (currentRole === 2) await refreshMyRequests(true);
@@ -226,13 +218,12 @@ async function loadContract() {
   if (!addr) { setStatus("Enter contract address.", true); return; }
   try {
     contract = new ethers.Contract(addr, CONTRACT_ABI, signer);
-    await contract.superAdmin(); // sanity check
+    await contract.superAdmin();
     eventListenersAttached = false;
     attachContractEvents();
     await fetchRole();
     await updateStats();
     setStatus("Contract loaded successfully.");
-    // Auto-load charities for admin
     if (currentRole === 1) await loadAllCharities();
   } catch (e) {
     setStatus("Failed to load: " + (e.shortMessage || e.message), true);
@@ -267,27 +258,21 @@ async function verifyCharity() {
   try {
     const wallet = el.verifyCharityWallet.value.trim();
     if (!ethers.isAddress(wallet)) { setStatus("Invalid wallet address.", true); return; }
-
-    // Pre-check: make sure the wallet has Charity role (i.e. admin assigned it)
     const role = Number(await contract.roles(wallet));
     if (role !== 2) {
-      setStatus(`⚠ That wallet has role "${ROLE_NAMES[role] || "None"}". Assign the Charity role to it first, then verify.`, true);
+      setStatus(`⚠ That wallet has role "${ROLE_NAMES[role] || "None"}". Assign the Charity role first.`, true);
       return;
     }
-
-    // Pre-check: make sure the charity has called registerCharity() already
     const profile = await contract.getCharityProfile(wallet);
     if (!profile.name || profile.name.trim() === "") {
-      setStatus("⚠ This charity wallet has not registered yet. Ask them to fill in their charity name and description in the Charity Panel first, then verify.", true);
+      setStatus("⚠ This charity has not registered yet. Ask them to fill in their name in the Charity Panel first.", true);
       return;
     }
-
     const tx = await contract.verifyCharity(wallet);
     setStatus("Verifying… tx: " + tx.hash);
     await tx.wait();
-    setStatus(`✅ Charity "${profile.name}" verified successfully!`);
+    setStatus(`✅ Charity "${profile.name}" verified!`);
     el.verifyCharityWallet.value = "";
-    // Auto-refresh the charities list so admin can see the verified badge immediately
     await loadAllCharities();
   } catch (e) { setStatus("Error: " + (e.shortMessage || e.message), true); }
 }
@@ -332,7 +317,7 @@ async function loadAllCharities() {
     const list = await contract.getAllCharities();
     el.charitiesList.innerHTML = "";
     if (!list.length) {
-      el.charitiesList.appendChild(emptyMsg("No charities have registered yet. The charity wallet must open the Charity Panel and click \"Register Charity\" first."));
+      el.charitiesList.appendChild(emptyMsg("No charities registered yet. The charity wallet must open the Charity Panel and click Register first."));
       return;
     }
     for (const c of list) {
@@ -347,8 +332,8 @@ async function loadAllCharities() {
         </div>
         <p>${c.description || "—"}</p>
         <p class="meta">Wallet: <code>${c.wallet}</code></p>
-        <p class="meta">Total received on-chain: <strong>${ethVal(c.totalReceived)}</strong></p>
-        ${!c.verified ? `<p class="meta" style="color:#b45309">→ Paste this wallet address in the Verify Charity box above to approve them.</p>` : ""}`;
+        <p class="meta">Total received: <strong>${ethVal(c.totalReceived)}</strong></p>
+        ${!c.verified ? `<p class="meta" style="color:#b45309">→ Copy this wallet into the Verify Charity field above.</p>` : ""}`;
       el.charitiesList.appendChild(div);
     }
   } catch (e) { setStatus("Error: " + (e.shortMessage || e.message), true); }
@@ -364,7 +349,7 @@ async function registerCharity() {
     const tx = await contract.registerCharity(name, desc);
     setStatus("Registering… tx: " + tx.hash);
     await tx.wait();
-    setStatus("Registered! Ask the admin to verify your wallet before creating requests.");
+    setStatus("Registered! Share your wallet address with the admin so they can verify you.");
     el.charityName.value = ""; el.charityDesc.value = "";
   } catch (e) { setStatus("Error: " + (e.shortMessage || e.message), true); }
 }
@@ -372,15 +357,22 @@ async function registerCharity() {
 async function createRequest() {
   if (!ensureReady()) return;
   try {
+    const profile = await contract.getCharityProfile(currentAccount);
+    if (!profile.name || profile.name.trim() === "") {
+      setStatus("⚠ Register your charity first (Step 1).", true); return;
+    }
+    if (!profile.verified) {
+      setStatus(`⚠ Your charity "${profile.name}" is not verified yet. Ask the admin to verify your wallet.`, true); return;
+    }
     const title  = el.reqTitle.value.trim();
     const desc   = el.reqDesc.value.trim();
     const ethAmt = parseFloat(el.reqTarget.value);
-    if (!title)              { setStatus("Title is required.", true); return; }
+    if (!title)                 { setStatus("Title is required.", true); return; }
     if (!ethAmt || ethAmt <= 0) { setStatus("Enter a valid target ETH amount.", true); return; }
     const tx = await contract.createRequest(title, desc, ethers.parseEther(ethAmt.toString()));
     setStatus("Creating request… tx: " + tx.hash);
     await tx.wait();
-    setStatus("Request created! Waiting for admin approval.");
+    setStatus("✅ Request created! Waiting for admin approval.");
     el.reqTitle.value = ""; el.reqDesc.value = ""; el.reqTarget.value = "";
     await refreshMyRequests();
   } catch (e) { setStatus("Error: " + (e.shortMessage || e.message), true); }
@@ -419,8 +411,7 @@ async function sendDonation(id, ethAmt, message, btn) {
     const tx = await contract.donate(id, message, { value: ethers.parseEther(ethAmt.toString()) });
     setStatus("Sending donation… tx: " + tx.hash);
     await tx.wait();
-    setStatus("✅ Donation sent! The progress bar will update.");
-    // Refresh immediately after tx confirmed
+    setStatus("✅ Donation sent! Loading your history…");
     await Promise.all([browseRequests(true), loadMyDonations(true), updateStats()]);
   } catch (e) {
     setStatus("Error: " + (e.shortMessage || e.message), true);
@@ -432,16 +423,27 @@ async function sendDonation(id, ethAmt, message, btn) {
 async function loadMyDonations(silent = false) {
   if (!ensureReady()) return;
   try {
+    // getMyDonations returns IDs of requests this donor contributed to
     const ids = await contract.getMyDonations();
     el.myDonationsList.innerHTML = "";
-    if (!ids.length) { el.myDonationsList.appendChild(emptyMsg("You haven't donated yet.")); return; }
+    if (!ids.length) {
+      el.myDonationsList.appendChild(emptyMsg("You haven't donated yet."));
+      return;
+    }
+
+    // Fetch all requests in one call and build a map — no getRequest() needed
+    const allRequests = await contract.getAllRequests();
+    const reqMap = {};
+    for (const r of allRequests) reqMap[r.id.toString()] = r;
+
     for (const id of ids) {
-      const [req, donations] = await Promise.all([
-        contract.getRequest(id),
-        contract.getRequestDonations(id),
-      ]);
+      const req = reqMap[id.toString()];
+      if (!req) continue;
+
+      const donations = await contract.getRequestDonations(id);
       const mine    = donations.filter(d => d.donor.toLowerCase() === currentAccount.toLowerCase());
       const myTotal = mine.reduce((a, d) => a + BigInt(d.amount.toString()), 0n);
+
       const card = document.createElement("div");
       card.className = "req-card";
       card.innerHTML = `
@@ -481,7 +483,6 @@ function buildCard(r, opts = {}) {
     ${Number(r.fulfilledAt) ? `<p class="meta">Fulfilled: ${ts(r.fulfilledAt)}</p>` : ""}
     ${progressHtml(r.raisedAmount, r.targetAmount)}`;
 
-  // Admin actions
   if (opts.adminActions) {
     const div = document.createElement("div");
     div.className = "req-actions";
@@ -491,14 +492,13 @@ function buildCard(r, opts = {}) {
     div.addEventListener("click", e => {
       const btn = e.target.closest("[data-action]");
       if (!btn) return;
-      Number(btn.dataset.id) && btn.dataset.action === "approve"
+      btn.dataset.action === "approve"
         ? approveRequest(Number(btn.dataset.id))
         : rejectRequest(Number(btn.dataset.id));
     });
     card.appendChild(div);
   }
 
-  // Donate form
   if (opts.donateForm) {
     const div = document.createElement("div");
     div.className = "req-actions donate-form";
@@ -516,24 +516,22 @@ function buildCard(r, opts = {}) {
     card.appendChild(div);
   }
 
-  // Expandable donation list
   if (opts.showDonations) {
     const sec = document.createElement("div");
     sec.className = "donations-toggle";
     sec.innerHTML = `
       <button class="btn btn-outline btn-sm" data-id="${r.id}" data-open="0">Show donations ▾</button>
       <div class="donations-list" style="display:none"></div>`;
-    sec.querySelector("button").addEventListener("click", async btn => {
-      const b    = btn.currentTarget;
+    sec.querySelector("button").addEventListener("click", async function() {
       const list = sec.querySelector(".donations-list");
-      if (b.dataset.open === "0") {
-        b.dataset.open = "1";
-        b.textContent  = "Hide donations ▴";
+      if (this.dataset.open === "0") {
+        this.dataset.open = "1";
+        this.textContent  = "Hide donations ▴";
         list.style.display = "block";
-        await populateDonationList(Number(b.dataset.id), list);
+        await populateDonationList(Number(this.dataset.id), list);
       } else {
-        b.dataset.open = "0";
-        b.textContent  = "Show donations ▾";
+        this.dataset.open = "0";
+        this.textContent  = "Show donations ▾";
         list.style.display = "none";
       }
     });
@@ -562,7 +560,7 @@ async function populateDonationList(requestId, container) {
   } catch (_) { container.innerHTML = "<p class='note'>Could not load donations.</p>"; }
 }
 
-// ─── Wire up buttons ──────────────────────────────────────────────────────────
+// ─── Buttons ──────────────────────────────────────────────────────────────────
 el.connectWalletBtn.addEventListener("click", connectWallet);
 el.loadContractBtn.addEventListener("click", loadContract);
 el.saveContractBtn.addEventListener("click", () => {
@@ -579,7 +577,6 @@ el.refreshMyRequestsBtn.addEventListener("click", () => refreshMyRequests(false)
 el.browseRequestsBtn.addEventListener("click", () => browseRequests(false));
 el.myDonationsBtn.addEventListener("click", () => loadMyDonations(false));
 
-// MetaMask events
 if (window.ethereum) {
   window.ethereum.on("accountsChanged", async () => {
     if (!provider) return;
@@ -594,7 +591,6 @@ if (window.ethereum) {
   });
 }
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
 window.addEventListener("load", () => {
   hideAllPanels();
   el.statPanel.style.display = "none";
